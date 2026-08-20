@@ -9,20 +9,44 @@ Attaching to real Chrome (instead of launching Chromium) avoids bot
 protection: the browser has a normal fingerprint, `navigator.webdriver` is
 false, and the login session persists in Chrome's own profile.
 
+## Quick Start (the commands you need)
+
+```bash
+cd ~/Documents/Learn/form-filler/browser_automation
+
+# 1. Activate the virtual environment
+source venv/bin/activate
+
+# 2. Start your real Chrome with remote debugging
+#    (only needed if that Chrome window is not already open)
+./start_chrome_debug.sh
+
+# 3. First time only: log in to SmartRecruiters in that Chrome window
+#    (the profile at ~/.chrome-debug-profile remembers the session)
+
+# 4. Run the test
+pytest -v
+```
+
+If `pytest` fails with `ECONNREFUSED 127.0.0.1:9222`, the debug Chrome
+window was closed - just run `./start_chrome_debug.sh` again.
+
 ## Project Structure
 
 ```text
 browser_automation/
 │
 ├── tests/
-│   └── test_form_fill.py    # The test: navigate → fill → verify pause
+│   └── test_form_fill.py    # The test: step 1 → Next → step 2 → pause
 │
 ├── pages/
-│   └── form_page.py         # Page Object: all locators + reusable actions
+│   ├── form_page.py         # Page Object: step 1 "Create" (job ad form)
+│   └── details_page.py      # Page Object: step 2 "Details" (custom fields)
 │
 ├── utils/
-│   └── test_data.py         # BASE_URL, timeouts, and sample form data
+│   └── test_data.py         # URLs, timeouts, FORM_DATA and DETAILS_DATA
 │
+├── start_chrome_debug.sh    # Starts real Chrome with the CDP debug port
 ├── conftest.py              # Makes pages/ and utils/ importable
 ├── requirements.txt
 ├── pytest.ini
@@ -48,16 +72,16 @@ playwright install
 
 ## Configuration
 
-1. Set your website URL in `utils/test_data.py`:
+All data lives in `utils/test_data.py`:
 
-   ```python
-   BASE_URL = "https://example.com"
-   ```
+- `FORM_DATA` - step 1 values (job title, descriptions, video URL, ...)
+- `DETAILS_DATA` - step 2 values, grouped by field type:
+  `text` (typed as-is), `autocomplete` (value filters the suggestions and
+  the first match is picked; `None` picks the first available option),
+  and `select` (option is chosen by its visible text)
 
-2. Replace the placeholder locators in `pages/form_page.py`
-   (e.g. `input[name='first_name']`) with the actual locators
-   from your website. Fields that don't exist on the page are
-   skipped automatically with a warning log.
+Fields that don't exist on the page are skipped automatically with a
+warning log.
 
 ## Run the Test
 
@@ -78,13 +102,16 @@ What happens:
    and opens a new tab in it.
 2. Navigates to `BASE_URL` and waits for the page to fully load.
 3. Takes a `before_filling` screenshot.
-4. Fills all text/email/password/phone/number/date fields, textarea,
-   dropdowns, radio buttons, checkboxes, and uploads a sample file
-   if a file input exists (scrolling to each element as needed).
-5. Takes an `after_filling` screenshot.
-6. Pauses 5 seconds so you can visually verify the values.
-7. Closes only the tab it opened and disconnects - your Chrome keeps
-   running. **Submit is never clicked.**
+4. Fills step 1 ("Create"): job title, work location type, the four
+   CKEditor rich-text sections, and the video URL.
+5. Takes an `after_filling` screenshot, then clicks **Next**.
+6. Fills step 2 ("Details"): text fields, lookup/autocomplete fields
+   (first real suggestion is picked), and dropdowns. Conditional fields
+   that appear mid-fill (e.g. EG_MG_Mapping, Level) are retried until
+   filled. Takes an `after_filling_details` screenshot.
+7. Pauses 5 seconds so you can visually verify the values.
+8. Closes only the tab it opened and disconnects - your Chrome keeps
+   running. **The Details step's Next button is never clicked.**
 
 Screenshots are saved in `screenshots/`. On any error, an `error.png`
 screenshot is captured automatically.

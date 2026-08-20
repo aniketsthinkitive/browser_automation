@@ -14,7 +14,7 @@ are label-based. Three interaction patterns exist:
 
 import logging
 
-from playwright.sync_api import Page
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from utils import test_data
 
@@ -78,10 +78,19 @@ class DetailsPage:
         # Click the first real option - some lists start with a
         # "--Select ...--" placeholder entry that must be skipped.
         options = host.locator("spl-select-option").filter(has_not_text="--Select")
-        if options.count() == 0:
-            logger.warning("Autocomplete '%s': no suggestions found - skipping", label)
-            self.page.keyboard.press("Escape")
-            return False
+        try:
+            options.first.wait_for(state="visible", timeout=3000)
+        except PlaywrightTimeoutError:
+            # Dropdown did not open (or closed again) - toggle it once more.
+            locator.click()
+            try:
+                options.first.wait_for(state="visible", timeout=3000)
+            except PlaywrightTimeoutError:
+                logger.warning(
+                    "Autocomplete '%s': no suggestions visible - skipping", label
+                )
+                self.page.keyboard.press("Escape")
+                return False
         options.first.click()
         logger.info(
             "Autocomplete '%s': picked first suggestion%s",
