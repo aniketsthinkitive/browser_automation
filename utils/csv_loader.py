@@ -21,6 +21,7 @@ from utils import test_data
 
 FORM_FIELDS = (
     "job_title",
+    "location",
     "work_location_type",
     "company_description",
     "job_description",

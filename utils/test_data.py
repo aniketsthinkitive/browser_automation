@@ -7,9 +7,15 @@ Keeping data separate from page objects and tests means:
   without changing the page objects or tests.
 """
 
+from datetime import datetime
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
+
+# One id per run: screenshots go to screenshots/<RUN_ID>/ and the results
+# CSV to results/<RUN_ID>/results.csv, so batches never overwrite each other.
+RUN_ID = datetime.now().strftime("run_%Y%m%d_%H%M%S")
 
 # Change this to your website's URL before running the test.
 BASE_URL = "https://www.smartrecruiters.com/app/jobs/ad/create"
@@ -36,8 +42,8 @@ LOGIN_WAIT_SECONDS = 300
 # CSV with one job ad per row (see utils/csv_loader.py for the column rules).
 JOBS_CSV_PATH = "data/jobs.csv"
 
-# Per-row PASS/FAIL report written by utils/reporter.py.
-RESULTS_CSV_PATH = "results.csv"
+# Per-row PASS/FAIL report written by utils/reporter.py (new folder per run).
+RESULTS_CSV_PATH = f"results/{RUN_ID}/results.csv"
 
 # How long (ms) to wait for the success signal after clicking Save.
 SAVE_TIMEOUT = 30_000
@@ -49,6 +55,8 @@ SAVE_TIMEOUT = 30_000
 
 FORM_DATA = {
     "job_title": "Senior Software Engineer",
+    # Typed into the Location autocomplete; the FIRST suggestion is picked.
+    "location": "Mumbai, Maharashtra, India",
     "work_location_type": "hybrid",      # on-site | remote | hybrid
     "company_description": (
         "We are a fast-growing technology company building products that "

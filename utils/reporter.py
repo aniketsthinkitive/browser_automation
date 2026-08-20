@@ -10,6 +10,7 @@ on, and the raw `error_detail` for debugging.
 
 import csv
 import logging
+import os
 from datetime import datetime
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -56,6 +57,7 @@ class Reporter:
 
     def __init__(self, path: str = test_data.RESULTS_CSV_PATH):
         self.path = path
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
         self.passed = 0
         self.failed = 0
         self._header_written = False

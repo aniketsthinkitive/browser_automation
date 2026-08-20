@@ -38,6 +38,18 @@ class FormPage:
         self.job_title_input = page.locator(
             '[data-test="jobWizard-jobField-jobTitle"] input'
         )
+        # Google-powered location autocomplete (no data-test host).
+        self.location_input = page.locator('input[placeholder="Enter job location"]')
+        self.location_suggestion = page.locator("spl-dropdown-item:visible")
+        # Manual location mode (used when the search finds no suggestions).
+        self.fill_manually_link = page.get_by_text("Fill Manually")
+        self.manual_city_input = page.locator('input[placeholder="Enter city"]')
+        self.manual_state_input = page.locator(
+            'input[placeholder="Enter state or province"]'
+        )
+        self.manual_country_input = page.locator(
+            'input[placeholder="Choose country/region"]'
+        )
         # value is one of: on-site | remote | hybrid
         self.work_location_radio = lambda value: page.locator(
             f"spl-radio[value='{value}']"
@@ -176,6 +188,78 @@ class FormPage:
         locator.set_input_files(file_path)
         logger.info("Uploaded '%s' to field '%s'", file_path, field_name)
 
+    def fill_location(self, value: str) -> None:
+        """
+        Fill the Location autocomplete: type the value, wait for the
+        Google-powered suggestions, then pick the FIRST one with the
+        keyboard (clicking the suggestion is intercepted by an inner
+        element, so ArrowDown+Enter is used instead).
+        """
+        if not self._is_present(self.location_input, "Location"):
+            return
+        self.location_input.scroll_into_view_if_needed()
+        self.location_input.click()
+        self.location_input.fill("")
+        self.location_input.press_sequentially(value, delay=50)
+        try:
+            self.location_suggestion.first.wait_for(state="visible")
+        except PlaywrightTimeoutError:
+            logger.warning(
+                "No suggestions for location '%s' - filling it manually", value
+            )
+            self.fill_location_manually(value)
+            return
+        self.location_input.press("ArrowDown")
+        self.location_input.press("Enter")
+        # When Google finds no address, the ONLY dropdown entry is the
+        # "Click here to fill in manually" item - selecting it swaps the
+        # search box for the manual city/state/country fields.
+        self.page.wait_for_timeout(500)
+        if self.manual_city_input.is_visible():
+            logger.warning(
+                "No address match for '%s' - the wizard switched to manual fill",
+                value,
+            )
+            self.fill_location_manually(value)
+            return
+        logger.info(
+            "Location: typed '%s', picked first suggestion -> '%s'",
+            value,
+            self.location_input.input_value(),
+        )
+
+    def fill_location_manually(self, value: str) -> None:
+        """
+        Fallback when the location search finds no address: click the
+        'Fill Manually' link and fill the city / state / country fields,
+        parsed from a "City, State, Country" value (a missing part is
+        simply left empty; country is picked from its autocomplete).
+        """
+        if not self.manual_city_input.is_visible():
+            self.fill_manually_link.click()
+            self.manual_city_input.wait_for(state="visible")
+
+        parts = [p.strip() for p in value.split(",") if p.strip()]
+        city = parts[0] if parts else ""
+        state = parts[1] if len(parts) >= 3 else ""
+        country = parts[-1] if len(parts) >= 2 else ""
+
+        self.fill_text(self.manual_city_input, city, "City")
+        if state:
+            self.fill_text(self.manual_state_input, state, "State/Province")
+        if country:
+            self.manual_country_input.click()
+            self.manual_country_input.press_sequentially(country, delay=50)
+            self.location_suggestion.first.wait_for(state="visible")
+            self.manual_country_input.press("ArrowDown")
+            self.manual_country_input.press("Enter")
+        logger.info(
+            "Location filled manually: city='%s', state='%s', country='%s'",
+            city,
+            state,
+            country,
+        )
+
     def take_screenshot(self, name: str) -> str:
         """Save a full-page screenshot into the screenshots directory."""
         path = os.path.join(test_data.SCREENSHOT_DIR, f"{name}.png")
@@ -204,7 +288,12 @@ class FormPage:
         self.fill_text(self.job_title_input, data["job_title"], "Job Title")
         self.page.keyboard.press("Escape")
 
-        # Location and Job Ad Language are prefilled autocompletes - left as-is.
+        # Location: type the CSV value and pick the first suggestion.
+        # An empty cell leaves the field as-is (in case it is prefilled).
+        if data.get("location"):
+            self.fill_location(data["location"])
+
+        # Job Ad Language is prefilled - left as-is.
 
         # Work location type radio (on-site | remote | hybrid)
         self.check_radio(

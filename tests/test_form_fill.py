@@ -9,7 +9,6 @@ with the next row (the shared tab simply re-navigates to the create URL).
 """
 
 import logging
-from datetime import datetime
 
 import pytest
 from playwright.sync_api import Page
@@ -19,11 +18,9 @@ from pages.details_page import DetailsPage
 from pages.hiring_team_page import HiringTeamPage
 from utils.csv_loader import load_jobs
 from utils.reporter import humanize_error
+from utils.test_data import RUN_ID
 
 logger = logging.getLogger(__name__)
-
-# One screenshot folder per run so batches never overwrite each other.
-RUN_ID = datetime.now().strftime("run_%Y%m%d_%H%M%S")
 
 ROWS = load_jobs()
 
