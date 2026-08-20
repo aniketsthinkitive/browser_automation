@@ -4,10 +4,12 @@ Page Object for step 3 ("Hiring Team") of the SmartRecruiters job wizard
 
 The page contains the hiring team table, the Headcount/Positions form,
 and the publishing preferences. This page has the green **Publish**
-button - it is intentionally never clicked (and neither is Save).
+button - it is intentionally never clicked; the automation clicks
+**Save** instead (see save()).
 """
 
 import logging
+import re
 
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
@@ -118,3 +120,59 @@ class HiringTeamPage:
         if data.get("hiring_manager"):
             self.fill_hiring_manager(data["hiring_manager"])
         logger.info("--- Finished filling the hiring team page ---")
+
+    def save(self) -> None:
+        """
+        Click **Save** (never the green Publish button) and verify the job
+        was actually saved. Raises AssertionError with a readable reason on
+        failure so the message lands in results.csv.
+        """
+        button = self.page.locator('spl-button[data-test*="save"]').first
+        if button.count() == 0:
+            button = self.page.get_by_role(
+                "button", name=re.compile(r"^save", re.I)
+            ).first
+        button.wait_for(state="visible")
+        label = (button.text_content() or "").strip()
+        if re.search(r"publish", label, re.I):
+            raise AssertionError(
+                f"Refusing to click button labelled '{label}' - expected Save"
+            )
+        logger.info("Clicking final-step button: '%s'", label or "Save")
+        button.scroll_into_view_if_needed()
+        button.click()
+
+        # Primary success signal: the app leaves the wizard for the saved
+        # job's page (layout-independent).
+        try:
+            self.page.wait_for_url(
+                lambda url: "/jobs/ad/" not in url,
+                timeout=test_data.SAVE_TIMEOUT,
+            )
+            self.page.wait_for_load_state("networkidle")
+            logger.info("Save confirmed - left the wizard, now at %s", self.page.url)
+            return
+        except PlaywrightTimeoutError:
+            pass
+
+        # Fallback success signal: a "saved" toast while still on the wizard.
+        toast = self.page.locator("spl-toast, [role='alert']")
+        toast_text = (toast.first.text_content() or "").strip() if toast.count() else ""
+        if re.search(r"saved", toast_text, re.I):
+            logger.info("Save confirmed via notification: %s", toast_text)
+            return
+
+        # Failure - surface whatever error/validation message is visible.
+        if toast_text:
+            raise AssertionError(f"Save rejected: '{toast_text[:150]}'")
+        invalid = self.page.locator(
+            "spl-input[invalid], spl-inline-message, [class*='error-message']"
+        )
+        if invalid.count():
+            detail = (invalid.first.text_content() or "").strip()[:150]
+            if detail:
+                raise AssertionError(f"Save rejected: '{detail}'")
+        raise AssertionError(
+            "Save clicked but no success signal within "
+            f"{test_data.SAVE_TIMEOUT // 1000}s (still on {self.page.url})"
+        )

@@ -1,0 +1,6 @@
+row,job_title,status,failed_step,failed_reason,error_detail,screenshot,timestamp
+1,Senior Software Engineer,PASS,,,,,2026-08-20 22:22:09
+2,QA Automation Engineer,FAIL,Step 2: Details,A field or button did not appear on the page in time (Timeout 30000ms exceeded.),"TimeoutError: Timeout 30000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to ""**/jobs/ad/details**"" until 'load'
+============================================================",screenshots/run_20260820_222048/row02_error.png,2026-08-20 22:22:43

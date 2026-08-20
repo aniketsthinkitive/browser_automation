@@ -33,6 +33,15 @@ UPLOAD_FILE_PATH = "sample_upload.txt"
 # Max time (seconds) the test waits for you to finish logging in manually.
 LOGIN_WAIT_SECONDS = 300
 
+# CSV with one job ad per row (see utils/csv_loader.py for the column rules).
+JOBS_CSV_PATH = "data/jobs.csv"
+
+# Per-row PASS/FAIL report written by utils/reporter.py.
+RESULTS_CSV_PATH = "results.csv"
+
+# How long (ms) to wait for the success signal after clicking Save.
+SAVE_TIMEOUT = 30_000
+
 
 # ---------------------------------------------------------------------------
 # Sample form data

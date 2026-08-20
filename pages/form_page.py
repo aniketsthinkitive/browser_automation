@@ -178,8 +178,8 @@ class FormPage:
 
     def take_screenshot(self, name: str) -> str:
         """Save a full-page screenshot into the screenshots directory."""
-        os.makedirs(test_data.SCREENSHOT_DIR, exist_ok=True)
         path = os.path.join(test_data.SCREENSHOT_DIR, f"{name}.png")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         self.page.screenshot(path=path, full_page=True)
         logger.info("Screenshot saved: %s", path)
         return path

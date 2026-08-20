@@ -1,105 +1,82 @@
 """
-Test: open the form page, fill every field with sample data,
-pause for manual verification, and close the browser.
+CSV-driven run: one test per row of data/jobs.csv. Each row fills the
+3-step job wizard in the SAME single tab and clicks **Save** on the last
+step (the green Publish button is never clicked).
 
-The Submit button is intentionally NOT clicked.
+A failed row is recorded in results.csv with the step it failed at, a
+plain-language reason, and an error screenshot - then the run continues
+with the next row (the shared tab simply re-navigates to the create URL).
 """
 
 import logging
+from datetime import datetime
 
 import pytest
-from playwright.sync_api import sync_playwright, Page, Error as PlaywrightError
+from playwright.sync_api import Page
 
 from pages.form_page import FormPage
 from pages.details_page import DetailsPage
 from pages.hiring_team_page import HiringTeamPage
-from utils import test_data
+from utils.csv_loader import load_jobs
+from utils.reporter import humanize_error
 
 logger = logging.getLogger(__name__)
 
+# One screenshot folder per run so batches never overwrite each other.
+RUN_ID = datetime.now().strftime("run_%Y%m%d_%H%M%S")
 
-@pytest.fixture
-def page():
-    """
-    Attach to the already-running real Chrome over CDP and yield a new page.
-
-    Using your real Chrome (instead of launching Chromium) avoids bot
-    detection: the browser has a normal fingerprint and keeps its login
-    session in its own profile. Start Chrome first with:
-
-        ./start_chrome_debug.sh
-    """
-    with sync_playwright() as playwright:
-        try:
-            browser = playwright.chromium.connect_over_cdp(test_data.CDP_URL)
-        except PlaywrightError as exc:
-            pytest.fail(
-                f"Could not connect to Chrome at {test_data.CDP_URL}. "
-                "Start it first with ./start_chrome_debug.sh\n"
-                f"Original error: {exc}"
-            )
-        # Reuse the browser's existing context (the real profile with its
-        # cookies/login) rather than creating a fresh, empty one.
-        context = browser.contexts[0]
-        page = context.new_page()
-        yield page
-        # Close only the tab we opened, then disconnect. The user's Chrome
-        # keeps running.
-        page.close()
-        browser.close()
-        logger.info("Disconnected from Chrome (browser left running)")
+ROWS = load_jobs()
 
 
-def test_fill_form(page: Page):
-    """Fill the entire form with sample data (without submitting)."""
+@pytest.mark.parametrize(
+    "job", ROWS, ids=lambda j: f"row{j.row_num:02d}-{j.job_title[:30]}"
+)
+def test_create_and_save_job(page: Page, reporter, job):
+    """Fill all three wizard steps from one CSV row and click Save."""
     form_page = FormPage(page)
+    step = "Login/Navigation"
 
     try:
-        # Step 1: Navigate and wait for full load
+        # Fresh wizard in the shared tab (also recovers from a failed row).
         form_page.open()
-
-        # Step 1b: If redirected to a login page, wait for manual login.
-        # The test continues automatically once the form page is reached.
         form_page.wait_for_manual_login()
 
-        # Step 2: Screenshot before filling
-        form_page.take_screenshot("before_filling")
+        step = "Step 1: Create"
+        form_page.fill_form(job.form_data)
+        form_page.take_screenshot(f"{RUN_ID}/row{job.row_num:02d}_step1")
 
-        # Step 3: Fill every available form field
-        form_page.fill_form(test_data.FORM_DATA)
-
-        # Step 4: Screenshot after filling
-        form_page.take_screenshot("after_filling")
-
-        # Step 5: Move to the "Details" step and fill it too
+        step = "Step 2: Details"
         form_page.go_to_next_step()
         details_page = DetailsPage(page)
-        details_page.fill_details(test_data.DETAILS_DATA)
+        details_page.fill_details(job.details_data)
+        form_page.take_screenshot(f"{RUN_ID}/row{job.row_num:02d}_step2")
 
-        # Step 6: Screenshot of the filled details page
-        form_page.take_screenshot("after_filling_details")
-
-        # Step 7: Move to the "Hiring Team" step and fill it too
+        step = "Step 3: Hiring Team"
         details_page.go_to_next_step()
         hiring_team_page = HiringTeamPage(page)
-        hiring_team_page.fill_hiring_team(test_data.HIRING_TEAM_DATA)
+        hiring_team_page.fill_hiring_team(job.hiring_team_data)
+        form_page.take_screenshot(f"{RUN_ID}/row{job.row_num:02d}_step3")
 
-        # Step 8: Screenshot of the filled hiring team page
-        form_page.take_screenshot("after_filling_hiring_team")
+        step = "Save"
+        hiring_team_page.save()
 
-        # Step 9: Pause so the values can be verified visually.
-        # (Intentional hardcoded wait - it exists purely for human review.)
-        logger.info(
-            "Waiting %s seconds for manual verification...",
-            test_data.VERIFICATION_PAUSE_SECONDS,
+        reporter.record(job.row_num, job.job_title, "PASS")
+
+    except Exception as exc:
+        screenshot = ""
+        try:
+            screenshot = form_page.take_screenshot(
+                f"{RUN_ID}/row{job.row_num:02d}_error"
+            )
+        except Exception:
+            logger.warning("Could not capture the error screenshot")
+        reporter.record(
+            job.row_num,
+            job.job_title,
+            "FAIL",
+            failed_step=step,
+            failed_reason=humanize_error(exc, step),
+            error_detail=f"{type(exc).__name__}: {exc}"[:300],
+            screenshot=screenshot,
         )
-        page.wait_for_timeout(test_data.VERIFICATION_PAUSE_SECONDS * 1000)
-
-        # NOTE: Publish/Save are intentionally NOT clicked.
-        logger.info("Test finished - all three steps filled but NOT published")
-
-    except Exception:
-        # Capture the failure state before re-raising so pytest reports it.
-        form_page.take_screenshot("error")
-        logger.exception("Test failed - error screenshot saved")
         raise
