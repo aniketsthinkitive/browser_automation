@@ -108,3 +108,19 @@ DETAILS_DATA = {
         # "Type of Employment" is already prefilled with "Full-time"
     },
 }
+
+# ---------------------------------------------------------------------------
+# Step 3 ("Hiring Team") data. The green Publish button on this step is
+# NEVER clicked by the automation.
+# ---------------------------------------------------------------------------
+
+HIRING_TEAM_DATA = {
+    # Role assigned to the first existing hiring team member row
+    "hiring_role": "Recruiter",
+    # Position fields ("Open date" is prefilled with today by the app)
+    "target_start_date": "2026-09-15",   # YYYY-MM-DD
+    "position_id": "POS-001",
+    # Optional: search text for the Hiring Manager employee picker.
+    # Skipped automatically if the directory returns no match.
+    "hiring_manager": None,
+}

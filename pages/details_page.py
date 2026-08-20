@@ -31,6 +31,14 @@ class DetailsPage:
             'spl-button[data-test="job-details-next-button"]'
         )
 
+    def go_to_next_step(self) -> None:
+        """Click Next and wait for the Hiring Team step to load."""
+        self.next_button.scroll_into_view_if_needed()
+        self.next_button.click()
+        self.page.wait_for_url("**/jobs/ad/publish**")
+        self.page.wait_for_load_state("networkidle")
+        logger.info("Moved to the Hiring Team step: %s", self.page.url)
+
     # -----------------------------------------------------------------
     # Label-based locator factories
     # -----------------------------------------------------------------

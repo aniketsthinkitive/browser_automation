@@ -41,7 +41,8 @@ browser_automation/
 │
 ├── pages/
 │   ├── form_page.py         # Page Object: step 1 "Create" (job ad form)
-│   └── details_page.py      # Page Object: step 2 "Details" (custom fields)
+│   ├── details_page.py      # Page Object: step 2 "Details" (custom fields)
+│   └── hiring_team_page.py  # Page Object: step 3 "Hiring Team" (positions)
 │
 ├── utils/
 │   └── test_data.py         # URLs, timeouts, FORM_DATA and DETAILS_DATA
@@ -109,9 +110,14 @@ What happens:
    (first real suggestion is picked), and dropdowns. Conditional fields
    that appear mid-fill (e.g. EG_MG_Mapping, Level) are retried until
    filled. Takes an `after_filling_details` screenshot.
-7. Pauses 5 seconds so you can visually verify the values.
-8. Closes only the tab it opened and disconnects - your Chrome keeps
-   running. **The Details step's Next button is never clicked.**
+7. Clicks **Next** and fills step 3 ("Hiring Team"): the hiring role of
+   the existing team member, the position's target start date and
+   Position ID, and optionally the Hiring Manager picker. Publishing
+   preferences are left at their defaults. Takes an
+   `after_filling_hiring_team` screenshot.
+8. Pauses 5 seconds so you can visually verify the values.
+9. Closes only the tab it opened and disconnects - your Chrome keeps
+   running. **Publish and Save are never clicked.**
 
 Screenshots are saved in `screenshots/`. On any error, an `error.png`
 screenshot is captured automatically.

@@ -12,6 +12,7 @@ from playwright.sync_api import sync_playwright, Page, Error as PlaywrightError
 
 from pages.form_page import FormPage
 from pages.details_page import DetailsPage
+from pages.hiring_team_page import HiringTeamPage
 from utils import test_data
 
 logger = logging.getLogger(__name__)
@@ -78,7 +79,15 @@ def test_fill_form(page: Page):
         # Step 6: Screenshot of the filled details page
         form_page.take_screenshot("after_filling_details")
 
-        # Step 7: Pause so the values can be verified visually.
+        # Step 7: Move to the "Hiring Team" step and fill it too
+        details_page.go_to_next_step()
+        hiring_team_page = HiringTeamPage(page)
+        hiring_team_page.fill_hiring_team(test_data.HIRING_TEAM_DATA)
+
+        # Step 8: Screenshot of the filled hiring team page
+        form_page.take_screenshot("after_filling_hiring_team")
+
+        # Step 9: Pause so the values can be verified visually.
         # (Intentional hardcoded wait - it exists purely for human review.)
         logger.info(
             "Waiting %s seconds for manual verification...",
@@ -86,8 +95,8 @@ def test_fill_form(page: Page):
         )
         page.wait_for_timeout(test_data.VERIFICATION_PAUSE_SECONDS * 1000)
 
-        # NOTE: The Details step's Next button is intentionally not clicked.
-        logger.info("Test finished - both steps filled but NOT submitted")
+        # NOTE: Publish/Save are intentionally NOT clicked.
+        logger.info("Test finished - all three steps filled but NOT published")
 
     except Exception:
         # Capture the failure state before re-raising so pytest reports it.
