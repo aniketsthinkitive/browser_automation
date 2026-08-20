@@ -11,6 +11,8 @@ false, and the login session persists in Chrome's own profile.
 
 ## Quick Start (the commands you need)
 
+**Linux / macOS:**
+
 ```bash
 cd ~/Documents/Learn/form-filler/browser_automation
 
@@ -27,6 +29,28 @@ source venv/bin/activate
 # 4. Run the test
 pytest -v
 ```
+
+**Windows (cmd):**
+
+```bat
+cd path\to\form-filler\browser_automation
+
+REM 1. Activate the virtual environment
+venv\Scripts\activate
+
+REM 2. Start your real Chrome with remote debugging
+start_chrome_debug.bat
+
+REM 3. First time only: log in to SmartRecruiters in that Chrome window
+REM    (the profile at %USERPROFILE%\.chrome-debug-profile remembers it)
+
+REM 4. Run the test
+pytest -v
+```
+
+Windows PowerShell users: activate the venv with
+`venv\Scripts\Activate.ps1` and start Chrome with
+`.\start_chrome_debug.bat`; the rest is identical.
 
 If `pytest` fails with `ECONNREFUSED 127.0.0.1:9222`, the debug Chrome
 window was closed - just run `./start_chrome_debug.sh` again.
@@ -47,7 +71,8 @@ browser_automation/
 ├── utils/
 │   └── test_data.py         # URLs, timeouts, FORM_DATA and DETAILS_DATA
 │
-├── start_chrome_debug.sh    # Starts real Chrome with the CDP debug port
+├── start_chrome_debug.sh    # Starts real Chrome with the CDP debug port (Linux/macOS)
+├── start_chrome_debug.bat   # Same for Windows
 ├── conftest.py              # Makes pages/ and utils/ importable
 ├── requirements.txt
 ├── pytest.ini
