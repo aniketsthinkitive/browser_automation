@@ -40,19 +40,16 @@ def test_create_and_save_job(page: Page, reporter, job):
 
         step = "Step 1: Create"
         form_page.fill_form(job.form_data)
-        form_page.take_screenshot(f"{RUN_ID}/row{job.row_num:02d}_step1")
 
         step = "Step 2: Details"
         form_page.go_to_next_step()
         details_page = DetailsPage(page)
         details_page.fill_details(job.details_data)
-        form_page.take_screenshot(f"{RUN_ID}/row{job.row_num:02d}_step2")
 
         step = "Step 3: Hiring Team"
         details_page.go_to_next_step()
         hiring_team_page = HiringTeamPage(page)
         hiring_team_page.fill_hiring_team(job.hiring_team_data)
-        form_page.take_screenshot(f"{RUN_ID}/row{job.row_num:02d}_step3")
 
         step = "Save"
         hiring_team_page.save()
